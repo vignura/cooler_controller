@@ -24,7 +24,7 @@ enum week {Sun = 0, Mon, Tue, Wed, Thu, Fri, Sat};
 #define MAX_RELAY_COUNT 2
 
 /* Temperature Sensor DS18B20 */
-#define TEMP_SENSE_PIN  2
+#define TEMP_SENSE_PIN  5
 #define ONE_WIRE_BUS    TEMP_SENSE_PIN
 /* 
 * Magnetic door Sensor MC-38 
@@ -32,7 +32,7 @@ enum week {Sun = 0, Mon, Tue, Wed, Thu, Fri, Sat};
 * door open   - HIGH
 * door closed - LOW
 */
-#define DOOR_SENSE_PIN  3
+#define DOOR_SENSE_PIN  4
 /* RTC I2C pins */
 #define RTC_SDA_PIN     "A4"
 #define RTC_SCL_PIN     "A5"
@@ -49,8 +49,8 @@ enum week {Sun = 0, Mon, Tue, Wed, Thu, Fri, Sat};
 #define COOLING_STATE_COOL      2
 
 /* cooling threshold temperatures */
-#define LOW_TRSH_TEMP_C        6
-#define HIGH_TRSH_TEMP_C       10
+#define LOW_TRSH_TEMP_C        6.0f
+#define HIGH_TRSH_TEMP_C       10.0f
 /****************************************** globals ********************************************/
 /* Relay objects pointers */
 #define RLY_COMPRESSOR   0
@@ -63,7 +63,7 @@ unsigned char g_ucRlyPin[MAX_RELAY_COUNT] = {RELAY_01, RELAY_02};
 #endif
 
 /* cooler state */
-uint8_t g_cooler_state = UNKNOWN_STATE;
+uint8_t g_cooler_state = COOLING_STATE_UNKNOWN;
 
 /* Setup a oneWire instance to communicate with any OneWire devices */
 OneWire oneWire(ONE_WIRE_BUS);
@@ -87,6 +87,9 @@ RTC_DS1307 rtc;
 /***********************************************************************************************/
 void setup() {
   
+  // initialize the door sensor pin
+  pinMode(DOOR_SENSE_PIN, INPUT_PULLUP);
+
   Relay_init();
 
   // Serial port initialization
@@ -94,9 +97,11 @@ void setup() {
     Serial.begin(DEBUG_BUAD_RATE);
   #endif
 
+
   // init temperature sensor
   temp_sensor.begin();
 
+#if 1
   // initialize RTC
   if (!rtc.begin())
   {
@@ -108,6 +113,7 @@ void setup() {
    debug_println("RTC is NOT running!");
    while (1);
  }
+#endif
 }
 
 /***********************************************************************************************/
@@ -155,6 +161,10 @@ void loop() {
   bool is_door_open = false;
   float cooler_temp_C = 0;
   
+ #if 0
+    // door_sensor_test();
+    temp_sensor_test();
+ #else 
   /* read the temperature */
   cooler_temp_C = read_cooler_temp();
   
@@ -190,6 +200,7 @@ void loop() {
     Rly[RLY_COMPRESSOR]->setState(RELAY_OFF);
     Rly[RLY_MOTOR]->setState(RELAY_OFF);
   }
+#endif
 }
 
 /***********************************************************************************************/
@@ -233,7 +244,7 @@ bool run_timer_rules()
     }
   }
 
-  debug_println("timer state: %s" state ? "ON" : "OFF");
+  debug_println("timer state: %s", state ? "ON" : "OFF");
   return state;
 }
 
@@ -253,10 +264,9 @@ float read_cooler_temp()
 {
   float temp_C = 0;
 
-  sensors.requestTemperatures();
-  temp_C = sensors.getTempCByIndex(0);
-  debug_println("current temperature: %1d.%1d deg C", (int)temp_C, ((temp_C * 10) % 10));
-
+  temp_sensor.requestTemperatures();
+  temp_C = temp_sensor.getTempCByIndex(0);
+  debug_println("current temperature: %d.%02d deg C", (int)temp_C, ((int)(temp_C * 100) % 100));
   return temp_C;
 }
 
@@ -278,7 +288,7 @@ bool should_turn_on_compressor(float temp_C, uint8_t* cooling_state)
 {
   bool state = false;
 
-  if (*cooling_state = COOLING_STATE_COOL)
+  if (*cooling_state == COOLING_STATE_COOL)
   {
     if (temp_C > LOW_TRSH_TEMP_C)
     {
@@ -292,7 +302,7 @@ bool should_turn_on_compressor(float temp_C, uint8_t* cooling_state)
     }
     debug_println("In cooling state");
   }
-  else if (*cooling_state = COOLING_STATE_WAITING)
+  else if (*cooling_state == COOLING_STATE_WAITING)
   {
     if (temp_C < HIGH_TRSH_TEMP_C)
     {
@@ -313,7 +323,7 @@ bool should_turn_on_compressor(float temp_C, uint8_t* cooling_state)
   }
 
   debug_println("compressor state: %s", state ? "ON" : "OFF");
-  return state
+  return state;
 }
 
 
@@ -334,13 +344,16 @@ bool read_door_state()
   bool state = false;
 
   /* assuming pull up configuration */
-  if(digitalRead(TEMP_SENSE_PIN) == HIGH)
+  /* when door is open, the sensor is in open 
+     circuit, so with a internal pull up, we
+     will read HIGH when door is open. */
+  if(digitalRead(DOOR_SENSE_PIN) == HIGH)
   {
-    state = false;
+    state = true;
   }
   else
   {
-    state = true;
+    state = false;
   }
 
   debug_println("door state: %s", state ? "OPEN" : "CLOSE");
@@ -378,6 +391,38 @@ void PrintBytes(unsigned char *ucBuffer, int iBuflen)
 
 /***********************************************************************************************/
 /*! 
+* \fn         :: door_sensor_test()
+* \author     :: Vignesh S
+* \date       :: 09-FEB-2022
+* \brief      :: This function prints the door sensor state continuously
+* \param[in]  :: NONE
+* \return     :: NONE
+*/
+/***********************************************************************************************/
+void door_sensor_test()
+{
+  read_door_state();
+  delay(500);
+}
+
+/***********************************************************************************************/
+/*! 
+* \fn         :: temp_sensor_test()
+* \author     :: Vignesh S
+* \date       :: 09-FEB-2022
+* \brief      :: This function prints the temperature read from sensor continuously
+* \param[in]  :: NONE
+* \return     :: NONE
+*/
+/***********************************************************************************************/
+void temp_sensor_test()
+{
+  read_cooler_temp();
+  delay(500);
+}
+
+/***********************************************************************************************/
+/*! 
 * \fn         :: debug_println()
 * \author     :: Vignesh S
 * \date       :: 06-FEB-2022
@@ -391,7 +436,7 @@ void debug_println(const char *format, ...)
   #ifdef PRINT_DEBUG    
     va_list pArg;
     va_start(pArg, format);
-    _vsntprintf(g_arrcMsg, MAX_DEBUG_MSG_SIZE, format, pArg);
+    vsnprintf(g_arrcMsg, MAX_DEBUG_MSG_SIZE, format, pArg);
     va_end(pArg);    
     Serial.println(g_arrcMsg);
   #endif
