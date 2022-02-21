@@ -9,6 +9,7 @@
 /***********************************************************************************************/
 // headers
 #include <Relay.h>
+#include <utility.h>
 // include library for temperature sensor 
 #include <OneWire.h>
 #include <DallasTemperature.h>
@@ -360,34 +361,6 @@ bool read_door_state()
 
   return state;
 }
-/***********************************************************************************************/
-/*! 
-* \fn         :: PrintBytes()
-* \author     :: Vignesh S
-* \date       :: 02-DEC-2018
-* \brief      :: This function prints the buffer byte by byte 
-* \param[in]  :: ucBuffer 
-* \param[in]  :: iBuflen
-* \return     :: None
-*/
-/***********************************************************************************************/
-void PrintBytes(unsigned char *ucBuffer, int iBuflen)
-{
-  int iIndex = 0;
-
-  if(ucBuffer == NULL)
-  {
-    return;
-  }
-
-  for(iIndex = 0; iIndex < iBuflen; iIndex++)
-  {
-    #ifdef PRINT_DEBUG
-      sprintf(g_arrcMsg,"BY%0d: %#X[%c]", ucBuffer[iIndex]);
-      Serial.println(g_arrcMsg);
-    #endif
-  }
-}
 
 /***********************************************************************************************/
 /*! 
@@ -419,25 +392,4 @@ void temp_sensor_test()
 {
   read_cooler_temp();
   delay(500);
-}
-
-/***********************************************************************************************/
-/*! 
-* \fn         :: debug_println()
-* \author     :: Vignesh S
-* \date       :: 06-FEB-2022
-* \brief      :: This function prints debug strings
-* \param[in]  :: string
-* \return     :: NONE
-*/
-/***********************************************************************************************/
-void debug_println(const char *format, ...)
-{
-  #ifdef PRINT_DEBUG    
-    va_list pArg;
-    va_start(pArg, format);
-    vsnprintf(g_arrcMsg, MAX_DEBUG_MSG_SIZE, format, pArg);
-    va_end(pArg);    
-    Serial.println(g_arrcMsg);
-  #endif
 }
