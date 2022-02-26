@@ -9,7 +9,10 @@
 /***********************************************************************************************/
 // headers
 #include <Relay.h>
+
+#define PRINT_DEBUG
 #include <utility.h>
+
 // include library for temperature sensor 
 #include <OneWire.h>
 #include <DallasTemperature.h>
@@ -38,10 +41,6 @@ enum week {Sun = 0, Mon, Tue, Wed, Thu, Fri, Sat};
 #define RTC_SDA_PIN     "A4"
 #define RTC_SCL_PIN     "A5"
 /***********************************************************************************************/
-
-/* comment the below macro to disable debug prints */
-#define PRINT_DEBUG
-#define MAX_DEBUG_MSG_SIZE                  128
 #define DEBUG_BUAD_RATE                     115200
 
 /* cooler states */
@@ -58,10 +57,6 @@ enum week {Sun = 0, Mon, Tue, Wed, Thu, Fri, Sat};
 #define RLY_MOTOR        1
 Relay *Rly[MAX_RELAY_COUNT] = {0};
 unsigned char g_ucRlyPin[MAX_RELAY_COUNT] = {RELAY_01, RELAY_02};
-
-#ifdef PRINT_DEBUG
-  char g_arrcMsg[MAX_DEBUG_MSG_SIZE] = {0};
-#endif
 
 /* cooler state */
 uint8_t g_cooler_state = COOLING_STATE_UNKNOWN;
@@ -106,14 +101,24 @@ void setup() {
   // initialize RTC
   if (!rtc.begin())
   {
-    debug_println("Couldn't find RTC");
+    debugPrintln("Couldn't find RTC");
     while (1);
   }
+  else
+  {
+    debugPrintln("RTC Found");
+  }
 
-  if (! rtc.isrunning()) {
-   debug_println("RTC is NOT running!");
-   while (1);
- }
+  if (! rtc.isrunning()) 
+  {
+    debugPrintln("RTC is NOT running!");
+    while (1);
+  }
+  else
+  {
+    debugPrintln("RTC is running");
+  }
+
 #endif
 }
 
@@ -134,7 +139,7 @@ void Relay_init()
 {
   uint8_t arrState[MAX_RELAY_COUNT] = {0};
   
-  debug_println("Setting all relay states to OFF");
+  debugPrintln("Setting all relay states to OFF");
   
   // Relay initialization
   for(int i = 0; i < MAX_RELAY_COUNT; i++)
@@ -228,7 +233,7 @@ bool run_timer_rules()
   uint8_t minute = now.minute();
   uint8_t second = now.second();
 
-  debug_println("Time: %02d:%02d:%02d Day: %s", hour, minute, second, daysOfTheWeek[day]);
+  debugPrintln("Time: %02d:%02d:%02d Day: %s", hour, minute, second, daysOfTheWeek[day]);
   
   /* day of week based rules */
   if (day != Sun) /* off days */
@@ -245,7 +250,7 @@ bool run_timer_rules()
     }
   }
 
-  debug_println("timer state: %s", state ? "ON" : "OFF");
+  debugPrintln("timer state: %s", state ? "ON" : "OFF");
   return state;
 }
 
@@ -267,7 +272,7 @@ float read_cooler_temp()
 
   temp_sensor.requestTemperatures();
   temp_C = temp_sensor.getTempCByIndex(0);
-  debug_println("current temperature: %d.%02d deg C", (int)temp_C, ((int)(temp_C * 100) % 100));
+  debugPrintln("current temperature: %d.%02d deg C", (int)temp_C, ((int)(temp_C * 100) % 100));
   return temp_C;
 }
 
@@ -299,9 +304,9 @@ bool should_turn_on_compressor(float temp_C, uint8_t* cooling_state)
     {
       *cooling_state = COOLING_STATE_WAITING;
       state = false;
-      debug_println("switching to waiting state");
+      debugPrintln("switching to waiting state");
     }
-    debug_println("In cooling state");
+    debugPrintln("In cooling state");
   }
   else if (*cooling_state == COOLING_STATE_WAITING)
   {
@@ -313,9 +318,9 @@ bool should_turn_on_compressor(float temp_C, uint8_t* cooling_state)
     {
       *cooling_state = COOLING_STATE_COOL;
       state = true;
-      debug_println("switching to cooling state");
+      debugPrintln("switching to cooling state");
     }
-    debug_println("In waiting state");
+    debugPrintln("In waiting state");
   }
   else
   {
@@ -323,7 +328,7 @@ bool should_turn_on_compressor(float temp_C, uint8_t* cooling_state)
     *cooling_state = COOLING_STATE_COOL;
   }
 
-  debug_println("compressor state: %s", state ? "ON" : "OFF");
+  debugPrintln("compressor state: %s", state ? "ON" : "OFF");
   return state;
 }
 
@@ -357,7 +362,7 @@ bool read_door_state()
     state = false;
   }
 
-  debug_println("door state: %s", state ? "OPEN" : "CLOSE");
+  debugPrintln("door state: %s", state ? "OPEN" : "CLOSE");
 
   return state;
 }
